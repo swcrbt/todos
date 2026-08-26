@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="icon" href="data:,">
+  <title>待办卡片原型 - tray-todo</title>
+  <link rel="stylesheet" href="assets/styles.css">
+</head>
+<body>
+
+  <!-- 模拟桌面背景（非真实运行路径，仅原型演示） -->
+  <div class="desktop" id="desktop">
+    <!-- 模拟 macOS 菜单栏；右侧为"托盘图标"区域 -->
+    <header class="mock-menubar" aria-hidden="true">
+      <div class="menubar-left">
+        <span class="apple">&#63743;</span>
+        <span>待办</span>
+        <span class="menubar-ghost">文件</span>
+        <span class="menubar-ghost">编辑</span>
+      </div>
+      <div class="menubar-right">
+        <button id="tray-icon" class="tray-icon" type="button" title="点击切换待办卡片（原型模拟托盘图标）" aria-label="待办托盘图标">&#128203;</button>
+        <span class="menubar-clock">08:26</span>
+      </div>
+    </header>
+  </div>
+
+  <!-- 待办卡片：模拟无边框小窗口（320×440，顶层） -->
+  <section id="card" class="card" role="dialog" aria-label="待办卡片" hidden>
+    <div id="error-banner" class="error-banner" role="alert" hidden></div>
+    <header class="card-header">
+      <h1 class="card-title">待办</h1>
+      <span id="count-badge" class="count-badge">共 0 项</span>
+    </header>
+    <div class="card-input-row">
+      <input id="todo-input" type="text" placeholder="添加待办，回车确认" aria-label="添加待办" autocomplete="off">
+    </div>
+    <ul id="todo-list" class="todo-list"></ul>
+    <div id="empty-state" class="empty-state">暂无待办，先添加一条吧</div>
+  </section>
+
+  <!-- 原型工具条：仅原型演示错误/受限状态，真实应用无此入口 -->
+  <footer class="proto-toolbar">
+    <span class="proto-toolbar-label">原型工具：</span>
+    <button id="simulate-fail" type="button" class="proto-btn">模拟保存失败</button>
+    <button id="simulate-fail-off" type="button" class="proto-btn" hidden>恢复保存</button>
+    <span id="proto-note" class="proto-note"></span>
+  </footer>
+
+  <script type="module" src="assets/app.mjs"></script>
+</body>
+</html>

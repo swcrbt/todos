@@ -1,0 +1,14 @@
+# Rust / Tauri 构建产物
+target/
+src-tauri/target/
+
+# macOS
+.DS_Store
+
+# Node 前端构建（本项目零构建，预留）
+node_modules/
+
+# 数据文件与原子写临时文件
+*.tmp
+todos.json
+todos.json.tmp

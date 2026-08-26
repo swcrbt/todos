@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="icon" href="data:,">
+  <title>待办</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+  <!-- 错误横幅：任一 invoke 失败时显示中文错误信息，3 秒自动消失 -->
+  <div id="error-banner" class="error-banner" role="alert" hidden></div>
+
+  <!-- 卡片头部：标题 + 计数徽标（中文文案） -->
+  <header class="card-header">
+    <h1 class="card-title">待办</h1>
+    <span id="count-badge" class="count-badge">共 0 项</span>
+  </header>
+
+  <!-- 输入区：回车提交；空/纯空白不发起调用 -->
+  <div class="card-input-row">
+    <input id="todo-input" type="text" placeholder="添加待办，回车确认" aria-label="添加待办" autocomplete="off">
+  </div>
+
+  <!-- 待办列表：勾选完成划线置灰保留；悬停/聚焦显示删除按钮 -->
+  <ul id="todo-list" class="todo-list"></ul>
+
+  <!-- 空状态：空列表时显示 -->
+  <div id="empty-state" class="empty-state">暂无待办，先添加一条吧</div>
+
+  <script type="module" src="app.mjs"></script>
+</body>
+</html>

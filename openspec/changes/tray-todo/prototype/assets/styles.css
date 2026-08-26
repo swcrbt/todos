@@ -1,0 +1,248 @@
+/* tray-todo 待办卡片原型样式 */
+/* 仅原型演示；真实实现由 Build 依据 design.md UI/UX 部分实现 */
+
+:root {
+  --card-width: 320px;
+  --card-height: 440px;
+  --card-radius: 12px;
+  --accent: #2563eb;
+  --text-main: #1f2328;
+  --text-muted: #6b7280;
+  --text-done: #9aa0a6;
+  --border: #e3e6ea;
+  --bg-card: #ffffff;
+  --bg-desktop: #dfe3ea;
+  --danger: #dc2626;
+  --shadow-lg: 0 12px 28px rgba(0, 0, 0, 0.18), 0 2px 8px rgba(0, 0, 0, 0.10);
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+html, body { height: 100%; }
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", "Segoe UI", sans-serif;
+  background: var(--bg-desktop);
+  color: var(--text-main);
+  overflow: hidden;
+  user-select: none;
+}
+
+/* ---------- 模拟桌面与菜单栏 ---------- */
+.desktop {
+  position: fixed;
+  inset: 0;
+  background: linear-gradient(180deg, #cdd3dd 0%, #e8ebf0 100%);
+}
+
+.mock-menubar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 12px;
+  background: rgba(30, 34, 42, 0.82);
+  color: #f2f4f7;
+  font-size: 13px;
+  z-index: 10;
+}
+
+.menubar-left { display: flex; align-items: center; gap: 14px; }
+.menubar-left .apple { margin-right: 2px; }
+.menubar-ghost { color: rgba(242, 244, 247, 0.5); }
+.menubar-right { display: flex; align-items: center; gap: 10px; }
+.menubar-clock { color: rgba(242, 244, 247, 0.75); }
+
+.tray-icon {
+  appearance: none;
+  border: none;
+  background: transparent;
+  font-size: 17px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 2px 4px;
+  border-radius: 6px;
+  color: #f2f4f7;
+}
+.tray-icon:hover { background: rgba(255, 255, 255, 0.18); }
+.tray-icon:focus-visible { outline: 2px solid #93c5fd; outline-offset: 1px; }
+
+/* ---------- 待办卡片（模拟无边框小窗口） ---------- */
+.card {
+  position: fixed;
+  top: 42px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: var(--card-width);
+  height: var(--card-height);
+  background: var(--bg-card);
+  border-radius: var(--card-radius);
+  box-shadow: var(--shadow-lg);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  z-index: 20;
+  animation: card-in 150ms ease-out;
+}
+
+@keyframes card-in {
+  from { opacity: 0; transform: translateX(-50%) translateY(-6px); }
+  to   { opacity: 1; transform: translateX(-50%) translateY(0); }
+}
+
+.card[hidden] { display: none; }
+
+/* 错误横幅（保存失败等受限状态） */
+.error-banner {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  background: var(--danger);
+  color: #fff;
+  font-size: 13px;
+  padding: 9px 14px;
+  text-align: center;
+  z-index: 30;
+  animation: banner-in 160ms ease-out;
+}
+.error-banner[hidden] { display: none; }
+@keyframes banner-in {
+  from { transform: translateY(-100%); }
+  to   { transform: translateY(0); }
+}
+
+/* 头部：标题 + 计数 */
+.card-header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  padding: 18px 20px 10px;
+}
+.card-title { font-size: 17px; font-weight: 600; }
+.count-badge { font-size: 12px; color: var(--text-muted); }
+
+/* 输入区 */
+.card-input-row { padding: 0 16px 12px; }
+#todo-input {
+  width: 100%;
+  height: 36px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 0 12px;
+  font-size: 14px;
+  color: var(--text-main);
+  outline: none;
+  background: #fafbfc;
+  transition: border-color 120ms ease, box-shadow 120ms ease;
+  user-select: text;
+}
+#todo-input::placeholder { color: #a8adb4; }
+#todo-input:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.16);
+  background: #fff;
+}
+
+/* 待办列表 */
+.todo-list {
+  flex: 1;
+  overflow-y: auto;
+  list-style: none;
+  padding: 0 10px 14px;
+}
+.todo-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 8px;
+  border-radius: 8px;
+  transition: background 120ms ease;
+}
+.todo-item:hover, .todo-item:focus-within { background: #f3f5f7; }
+
+.todo-item input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--accent);
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.todo-text {
+  flex: 1;
+  font-size: 14px;
+  line-height: 1.45;
+  overflow-wrap: break-word;
+  user-select: text;
+  transition: color 120ms ease;
+}
+
+/* 完成态：划线置灰、保留在列表（SCN-TODO-002-A） */
+.todo-item.done .todo-text {
+  text-decoration: line-through;
+  text-decoration-thickness: 1.5px;
+  color: var(--text-done);
+}
+
+/* 删除按钮：仅悬停/聚焦条目可见（SCN-TODO-003-A） */
+.delete-btn {
+  appearance: none;
+  border: none;
+  background: transparent;
+  color: #9aa0a6;
+  font-size: 15px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 4px 6px;
+  border-radius: 6px;
+  opacity: 0;
+  transition: opacity 150ms ease, color 120ms ease;
+  flex-shrink: 0;
+}
+.todo-item:hover .delete-btn,
+.todo-item:focus-within .delete-btn { opacity: 1; }
+.delete-btn:hover { color: var(--danger); }
+.delete-btn:focus-visible { outline: 2px solid var(--accent); opacity: 1; }
+
+/* 空状态 */
+.empty-state {
+  padding: 0 20px 18px;
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
+/* ---------- 原型工具条（仅原型演示，真实应用无此入口） ---------- */
+.proto-toolbar {
+  position: fixed;
+  bottom: 10px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(30, 34, 42, 0.78);
+  color: #dfe3ea;
+  font-size: 12px;
+  padding: 6px 12px;
+  border-radius: 20px;
+  z-index: 5;
+}
+.proto-toolbar-label { opacity: 0.85; }
+.proto-btn {
+  appearance: none;
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  background: rgba(255, 255, 255, 0.12);
+  color: #fff;
+  font-size: 12px;
+  padding: 2px 10px;
+  border-radius: 12px;
+  cursor: pointer;
+}
+.proto-btn:hover { background: rgba(255, 255, 255, 0.22); }
+.proto-note { opacity: 0.9; }

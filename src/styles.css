@@ -1,0 +1,145 @@
+/* tray-todo 待办卡片样式：真实窗口中 body 即卡片（无边框 320×440 小窗口） */
+
+:root {
+  --card-width: 320px;
+  --card-height: 440px;
+  --accent: #2563eb;
+  --text-main: #1f2328;
+  --text-muted: #6b7280;
+  --text-done: #9aa0a6;
+  --border: #e3e6ea;
+  --danger: #dc2626;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+html, body { height: 100%; }
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", "Segoe UI", sans-serif;
+  width: var(--card-width);
+  height: var(--card-height);
+  background: #ffffff;
+  color: var(--text-main);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  user-select: none;
+}
+
+/* 错误横幅：顶部滑入，3 秒后由前端隐藏 */
+.error-banner {
+  background: var(--danger);
+  color: #fff;
+  font-size: 13px;
+  padding: 9px 14px;
+  text-align: center;
+  animation: banner-in 160ms ease-out;
+}
+.error-banner[hidden] { display: none; }
+
+@keyframes banner-in {
+  from { transform: translateY(-100%); }
+  to   { transform: translateY(0); }
+}
+
+/* 头部：标题 + 计数 */
+.card-header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  padding: 18px 20px 10px;
+}
+.card-title { font-size: 17px; font-weight: 600; }
+.count-badge { font-size: 12px; color: var(--text-muted); }
+
+/* 输入区 */
+.card-input-row { padding: 0 16px 12px; }
+#todo-input {
+  width: 100%;
+  height: 36px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 0 12px;
+  font-size: 14px;
+  color: var(--text-main);
+  outline: none;
+  background: #fafbfc;
+  transition: border-color 120ms ease, box-shadow 120ms ease;
+  user-select: text;
+}
+#todo-input::placeholder { color: #a8adb4; }
+#todo-input:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.16);
+  background: #fff;
+}
+
+/* 待办列表：条目垂直排列，区域内可滚动 */
+.todo-list {
+  flex: 1;
+  overflow-y: auto;
+  list-style: none;
+  padding: 0 10px 14px;
+}
+.todo-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 8px;
+  border-radius: 8px;
+  transition: background 120ms ease;
+}
+.todo-item:hover, .todo-item:focus-within { background: #f3f5f7; }
+
+.todo-item input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--accent);
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.todo-text {
+  flex: 1;
+  font-size: 14px;
+  line-height: 1.45;
+  overflow-wrap: break-word;
+  user-select: text;
+  transition: color 120ms ease;
+}
+
+/* 完成态：划线置灰、保留在列表 */
+.todo-item.done .todo-text {
+  text-decoration: line-through;
+  text-decoration-thickness: 1.5px;
+  color: var(--text-done);
+}
+
+/* 删除按钮：仅悬停/聚焦该条目时可见 */
+.delete-btn {
+  appearance: none;
+  border: none;
+  background: transparent;
+  color: #9aa0a6;
+  font-size: 15px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 4px 6px;
+  border-radius: 6px;
+  opacity: 0;
+  transition: opacity 150ms ease, color 120ms ease;
+  flex-shrink: 0;
+}
+.todo-item:hover .delete-btn,
+.todo-item:focus-within .delete-btn { opacity: 1; }
+.delete-btn:hover { color: var(--danger); }
+.delete-btn:focus-visible { outline: 2px solid var(--accent); opacity: 1; }
+
+/* 空状态：空列表时居中置灰文案 */
+.empty-state {
+  padding: 0 20px 18px;
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 13px;
+}
