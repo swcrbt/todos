@@ -3,7 +3,7 @@
 ## Metadata
 
 - Change ID: tray-todo
-- Schema / Version: engineering-spec-driven
+- Schema / Version: spec-driven
 - Proposal Revision: 1
 - Current Stage: propose
 - Requirements Confirmation: 2026-08-26 用户确认需求结晶摘要（平台 macOS+Windows：架构预留 Linux；技术栈 Tauri v2；点击托盘图标切换显隐、失焦关闭；输入框+回车添加、空输入不添加；勾选划线保留可取消；悬停删除按钮直删、无确认；本地持久化；中文界面），绑定 Proposal Revision 1
@@ -18,7 +18,7 @@
 
 全新空项目，无既有产品行为可观察：
 
-- 工作目录 `/Volumes/g-disk/www/github.com/swcrbt/todos` 为空，无任何业务代码、配置或制品。
+- 工作目录（本次初始化时的仓库目录）为空，无任何业务代码、配置或制品。
 - 无系统的、跨平台的托盘待办工具可用，用户需要在任意时刻快速记录和整理待办。
 
 ### Affected Users / Roles / Permission Boundaries

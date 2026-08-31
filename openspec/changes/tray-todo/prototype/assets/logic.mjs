@@ -12,9 +12,12 @@ export function isValidInput(text) {
 
 /**
  * 计数徽标文案（中文，FACT-009）。
- * @param {number} count
+ * @param {*} count
  * @returns {string} 如 "共 3 项"
  */
 export function formatCount(count) {
+  if (typeof count !== "number" || !Number.isFinite(count) || count < 0) {
+    return "共 0 项";
+  }
   return `共 ${count} 项`;
 }

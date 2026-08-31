@@ -31,9 +31,12 @@ pub fn create_tray(app: &tauri::AppHandle) -> tauri::Result<()> {
     let quit = MenuItem::with_id(app, "quit", "退出", true, None::<&str>)?;
     let menu = Menu::with_items(app, &[&quit])?;
 
-    TrayIconBuilder::with_id("main")
-        .icon(app.default_window_icon().expect("默认窗口图标应已配置").clone())
-        .tooltip("待办")
+    // 专用单色托盘图标：透明底 + 白色圆环对勾，与系统菜单栏风格统一
+    let tray_icon = tauri::image::Image::from_bytes(include_bytes!("../icons/tray-icon.png"))?;
+
+    let mut builder = TrayIconBuilder::with_id("main")
+        .icon(tray_icon)
+        .tooltip("todos")
         .menu(&menu)
         // macOS 上左键点击不弹出菜单，而是切换卡片；右键才弹出【退出】菜单
         .show_menu_on_left_click(false)
@@ -52,7 +55,14 @@ pub fn create_tray(app: &tauri::AppHandle) -> tauri::Result<()> {
                 LAST_TRAY_CLICK_MS.store(now_ms(), std::sync::atomic::Ordering::Relaxed);
                 card::toggle_card(tray.app_handle());
             }
-        })
-        .build(app)?;
+        });
+
+    // macOS：模板图标，随明暗菜单栏自动渲染黑白
+    #[cfg(target_os = "macos")]
+    {
+        builder = builder.icon_as_template(true);
+    }
+
+    builder.build(app)?;
     Ok(())
 }

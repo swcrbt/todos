@@ -6,7 +6,8 @@ use std::sync::atomic::Ordering;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use tauri::{
-    Manager, PhysicalPosition, WebviewUrl, WebviewWindow, WebviewWindowBuilder, WindowEvent,
+    Emitter, Manager, PhysicalPosition, WebviewUrl, WebviewWindow, WebviewWindowBuilder,
+    WindowEvent,
 };
 
 use crate::tray::LAST_TRAY_CLICK_MS;
@@ -30,19 +31,39 @@ fn now_ms() -> u64 {
 /// - CloseRequested：拦截阻止关闭，转为隐藏（隐藏语义而非退出）
 /// - Focused(false)：防抖延时后复核焦点状态与托盘点击窗口期，确认后隐藏并丢弃未提交输入
 pub fn create_card(app: &tauri::AppHandle) -> tauri::Result<WebviewWindow> {
-    let win = WebviewWindowBuilder::new(app, CARD_WINDOW_ID, WebviewUrl::App("index.html".into()))
-        .title("待办")
-        .decorations(false)
-        .resizable(false)
-        .inner_size(320.0, 440.0)
-        .visible(false)
-        .build()?;
+    let mut builder =
+        WebviewWindowBuilder::new(app, CARD_WINDOW_ID, WebviewUrl::App("index.html".into()))
+            .title("todos")
+            .decorations(false)
+            .resizable(false)
+            .inner_size(320.0, 440.0)
+            .visible(false);
+
+    // macOS：关闭 WKWebView 的行内预测（inline predictions），
+    // 否则编辑框会出现系统级的蓝色下划线/预测线，且无法用 CSS 去掉。
+    #[cfg(target_os = "macos")]
+    {
+        use objc2::MainThreadMarker;
+        use objc2_web_kit::WKWebViewConfiguration;
+
+        let configuration = unsafe {
+            let config = WKWebViewConfiguration::new(
+                MainThreadMarker::new().expect("必须在主线程创建 WKWebViewConfiguration"),
+            );
+            config.setAllowsInlinePredictions(false);
+            config
+        };
+        builder = builder.with_webview_configuration(configuration);
+    }
+
+    let win = builder.build()?;
 
     let handle_for_event = app.clone();
+    let win_for_event = win.clone();
     win.on_window_event(move |event| match event {
         WindowEvent::CloseRequested { api, .. } => {
             api.prevent_close();
-            let _ = win.hide();
+            let _ = win_for_event.hide();
             // 通知前端：隐藏时丢弃未提交输入并清除错误横幅
             let _ = handle_for_event.emit("card-hidden", ());
         }
@@ -80,11 +101,19 @@ pub fn toggle_card(app: &tauri::AppHandle) {
             let _ = win.hide();
             let _ = app.emit("card-hidden", ());
         } else {
-            position_card(&win, app);
-            let _ = win.show();
-            let _ = win.set_focus();
-            let _ = app.emit("card-shown", ());
+            show_card(app);
         }
+    }
+}
+
+/// 唤起卡片：无论当前是否可见，定位后显示并置前聚焦（单实例二次启动语义，DEC-004）。
+/// 卡片已可见时调用等价于重新置前并聚焦，不会隐藏。
+pub fn show_card(app: &tauri::AppHandle) {
+    if let Some(win) = app.get_webview_window(CARD_WINDOW_ID) {
+        position_card(&win, app);
+        let _ = win.show();
+        let _ = win.set_focus();
+        let _ = app.emit("card-shown", ());
     }
 }
 
@@ -107,6 +136,9 @@ fn position_card(win: &WebviewWindow, app: &tauri::AppHandle) {
     let msize = mon.size();
     let w = (320.0 * scale) as i32;
     let h = (440.0 * scale) as i32;
+    // macOS 分支不使用 h（位于工作区顶部），仅用于消除未使用告警
+    #[cfg(target_os = "macos")]
+    let _ = h;
 
     // macOS 菜单栏在下，卡片贴近工作区顶部；Windows 任务栏在下，卡片贴近工作区底部
     #[cfg(target_os = "macos")]

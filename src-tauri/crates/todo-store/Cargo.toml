@@ -2,6 +2,7 @@
 name = "todo-store"
 version = "0.1.0"
 edition = "2021"
+rust-version = "1.85"
 description = "待办数据层：零 Tauri 依赖的独立 crate"
 
 [dependencies]

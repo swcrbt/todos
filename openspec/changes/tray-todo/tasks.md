@@ -106,7 +106,7 @@
   - Test Seam: SEAM-001（底层语义已测）+ SEAM-003（经 UI 端到端验证）
   - Red Verification: `cargo check`（在 `src-tauri/` 下）
   - Expected Red Result: 编译失败（命令函数/注册缺失）或在 `cargo tauri dev` 下 invoke 返回 reject
-  - Implementation Direction: `list_todos`/`add_todo(text)`/`toggle_todo(id)`/`remove_todo(id)` 薄包装 `AppState<TodoStore>`（`tauri::State`）；返回 `TodoItemDto { id, text, done, created_at }`；错误映射：`InvalidInput`→"内容为空，无法添加"、`NotFound`→"待办不存在"、`IoError`→"保存失败：写入磁盘出错"；全部注册进 `invoke_handler`
+  - Implementation Direction: `list_todos`/`add_todo(text)`/`toggle_todo(id)`/`remove_todo(id)` 薄包装 `Mutex<TodoStore>`（`tauri::State<'_, Mutex<TodoStore>>`）；返回 `TodoItemDto { id, text, done, created_at }`；错误映射：`InvalidInput`→"内容为空，无法添加"、`NotFound`→"待办不存在"、`IoError`→"保存失败：写入磁盘出错"；全部注册进 `invoke_handler`
   - Done Criteria: `cargo check` 通过；`cargo tauri dev` 下经 SEAM-003 验证添加/勾选/删除均成功落盘；写入失败路径（对只读目录等）返回中文 Err（SEAM-003 清单记录）
   - Pass Verification: `cargo check` 退出码 0；SEAM-003 清单对应项通过
   - Evidence: pending
@@ -145,7 +145,7 @@
   - Test Seam: SEAM-001（load 已有测试复跑）+ SEAM-003（macOS 手动）
   - Red Verification: `cargo tauri dev`
   - Expected Red Result: 二次启动出现第二个图标/进程，或启动时数据不恢复，或 macOS Dock 出现图标
-  - Implementation Direction: `tauri.conf.json` 固定 `identifier`（如 `com.swcrbt.todos`）与 `app_data_dir` 后端取路径；`tauri-plugin-single-instance` 初始化（`tauri_plugin_single_instance::init`），二次启动回调 → 唤起并显示卡片窗口；`setup`：`app.path().app_data_dir()` 下 `todos.json` → `TodoStore::load` 注入 `AppState`；macOS `ActivationPolicy::Accessory`（无 Dock 图标）；commands/tray/card 完成装配；`main.rs` 调 `run()`
+  - Implementation Direction: `tauri.conf.json` 固定 `identifier`（如 `com.swcrbt.todos`）与 `app_data_dir` 后端取路径；`tauri-plugin-single-instance` 初始化（`tauri_plugin_single_instance::init`），二次启动回调 → 唤起并显示卡片窗口；`setup`：`app.path().app_data_dir()` 下 `todos.json` → `TodoStore::load` 注入 `Mutex<TodoStore>`；macOS `ActivationPolicy::Accessory`（无 Dock 图标）；commands/tray/card 完成装配；`main.rs` 调 `run()`
   - Done Criteria: macOS 手动：重复启动不产生双进程/双图标且二次启动后卡片出现；重启后列表与完成状态恢复；Dock 无图标、仅菜单栏常驻；退出菜单后进程完全结束
   - Pass Verification: `cargo tauri dev` 无报错；SEAM-003 清单"单实例/重启恢复/无 Dock 图标"通过并记录；`cargo test -p todo-store` 复跑仍全绿
   - Evidence: pending

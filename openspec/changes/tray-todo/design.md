@@ -17,7 +17,7 @@
   - `openspec/changes/tray-todo/specs/tray-card/spec.md`
   - `openspec/changes/tray-todo/specs/todo-management/spec.md`
   - `openspec/changes/tray-todo/.openspec.yaml`
-  - `openspec/schemas/engineering-spec-driven/schema.yaml`（链接目标，模板来源）
+  - OpenSpec 内置 `spec-driven` schema（模板来源）
 - Additional Sources Read:
   - `openspec status` / `openspec instructions design` 输出（change 状态、模板与指令）
   - 工作目录结构探查：`openspec/` 与 `.git/` 之外无任何业务代码（确认全新空项目）
@@ -121,7 +121,7 @@
 | Module ID | Owner / Module | Responsibility | Must Not Own | Dependency Direction |
 | --- | --- | --- | --- | --- |
 | MOD-001 | `src-tauri/crates/todo-store`（独立 crate） | 待办数据模型（`TodoItem`、`TodoStore`）、list/add/toggle/remove、原子持久化、损坏文件恢复；零 tauri 依赖 | 任何 Tauri API、托盘、窗口、前端渲染 | 仅依赖 std/serde/serde_json/uuid/thiserror（可选） |
-| MOD-002 | `src-tauri/src/lib.rs` + `main.rs` | 应用生命周期、单实例插件初始化、`AppState<TodoStore>` 管理、托盘与窗口装配、command 注册、macOS ActivationPolicy 设置 | 业务规则、持久化细节 | 依赖 MOD-001/003/004/005 |
+| MOD-002 | `src-tauri/src/lib.rs` + `main.rs` | 应用生命周期、单实例插件初始化、`Mutex<TodoStore>` 状态管理、托盘与窗口装配、command 注册、macOS ActivationPolicy 设置 | 业务规则、持久化细节 | 依赖 MOD-001/003/004/005 |
 | MOD-003 | `src-tauri/src/tray.rs` | 托盘图标创建（常驻）、左键点击 → toggle 指令、右键原生菜单（含"退出"） | 窗口定位、焦点逻辑 | 只发指令给 MOD-004；不直接操作数据 |
 | MOD-004 | `src-tauri/src/card.rs` | 卡片窗口创建（无边框、固定尺寸、初始 hidden）、显示前定位（靠近托盘/光标所在屏幕边缘）、show/hide/toggle、失焦自动隐藏（含竞态守卫）、二次启动时唤起 | 数据读写、渲染内容 | 只做窗口生命周期；不依赖 MOD-001 |
 | MOD-005 | `src-tauri/src/commands.rs` | 薄 command 层：`list_todos` / `add_todo` / `toggle_todo` / `remove_todo`，参数校验（trim 非空）、错误到中文可读字符串映射 | 托盘/窗口逻辑、持久化实现 | 只依赖 MOD-001 |

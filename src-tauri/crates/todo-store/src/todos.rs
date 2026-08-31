@@ -71,22 +71,37 @@ impl TodoStore {
     pub fn load(path: impl AsRef<Path>) -> Result<Self, TodoError> {
         let path = path.as_ref();
         if !path.exists() {
-            return Ok(Self { path: path.to_path_buf(), items: Vec::new() });
+            return Ok(Self {
+                path: path.to_path_buf(),
+                items: Vec::new(),
+            });
         }
         let raw = fs::read_to_string(path)?;
         match serde_json::from_str::<TodoFile>(&raw) {
-            Ok(file) if file.version == 1 => Ok(Self { path: path.to_path_buf(), items: file.items }),
+            Ok(file) if file.version == 1 => Ok(Self {
+                path: path.to_path_buf(),
+                items: file.items,
+            }),
             Ok(file) => {
                 // 未来版本（version > 1）：备份后以空库启动（版本迁移预留）
-                eprintln!("todo-store: 数据文件版本 {0} 不受支持，备份并重置", file.version);
+                eprintln!(
+                    "todo-store: 数据文件版本 {0} 不受支持，备份并重置",
+                    file.version
+                );
                 Self::backup_corrupt(path);
-                Ok(Self { path: path.to_path_buf(), items: Vec::new() })
+                Ok(Self {
+                    path: path.to_path_buf(),
+                    items: Vec::new(),
+                })
             }
             Err(e) => {
                 // JSON 结构损坏：备份 + 空库，不使应用崩溃（Reliability 节）
                 eprintln!("todo-store: 数据文件损坏，备份并重置（{e}）");
                 Self::backup_corrupt(path);
-                Ok(Self { path: path.to_path_buf(), items: Vec::new() })
+                Ok(Self {
+                    path: path.to_path_buf(),
+                    items: Vec::new(),
+                })
             }
         }
     }
@@ -115,8 +130,11 @@ impl TodoStore {
                 .map(|d| d.as_secs() as i64)
                 .unwrap_or(0),
         };
-        self.items.push(item.clone());
-        self.persist()?;
+        // 先持久化副本，成功后才提交内存（INV-002：失败不改内存）
+        let mut next = self.items.clone();
+        next.push(item.clone());
+        self.persist(&next)?;
+        self.items = next;
         Ok(item)
     }
 
@@ -124,14 +142,35 @@ impl TodoStore {
     /// 语义：id 不存在 → Err(NotFound)；存在 → 置反 done 并立即持久化；
     /// persist 失败 → 返回 Err（UI 层保持界面不变）。返回切换后的条目供前端幂等渲染。
     pub fn toggle(&mut self, id: &str) -> Result<TodoItem, TodoError> {
-        let item = self
-            .items
+        let mut next = self.items.clone();
+        let item = next
             .iter_mut()
             .find(|i| i.id == id)
             .ok_or(TodoError::NotFound)?;
         item.done = !item.done;
         let result = item.clone();
-        self.persist()?;
+        self.persist(&next)?;
+        self.items = next;
+        Ok(result)
+    }
+
+    /// 修改待办文本。
+    /// 语义：id 不存在 → Err(NotFound)；trim 后为空 → Err(InvalidInput)；
+    /// 存在且非空 → 更新 text 并立即持久化；persist 失败 → 返回 Err（内存不变）。
+    pub fn update(&mut self, id: &str, text: String) -> Result<TodoItem, TodoError> {
+        let trimmed = text.trim();
+        if trimmed.is_empty() {
+            return Err(TodoError::InvalidInput);
+        }
+        let mut next = self.items.clone();
+        let item = next
+            .iter_mut()
+            .find(|i| i.id == id)
+            .ok_or(TodoError::NotFound)?;
+        item.text = trimmed.to_string();
+        let result = item.clone();
+        self.persist(&next)?;
+        self.items = next;
         Ok(result)
     }
 
@@ -139,25 +178,30 @@ impl TodoStore {
     /// 语义：id 不存在 → Err(NotFound)；存在 → 移除并立即持久化；
     /// 删除不可撤回（UI 无确认/无撤销入口，id 永不复用）。完成与未完成条目均可删。
     pub fn remove(&mut self, id: &str) -> Result<(), TodoError> {
-        let idx = self
-            .items
+        let mut next = self.items.clone();
+        let idx = next
             .iter()
             .position(|i| i.id == id)
             .ok_or(TodoError::NotFound)?;
-        self.items.remove(idx);
-        self.persist()?;
+        next.remove(idx);
+        self.persist(&next)?;
+        self.items = next;
         Ok(())
     }
 
-    /// 原子持久化：序列化完整 TodoFile 写入 `<path>.tmp`，
+    /// 原子持久化：序列化指定条目快照为完整 TodoFile 写入 `<path>.tmp`，
     /// 随后 `fs::rename` 原子替换正式文件；任何时刻磁盘上要么旧文件、要么完整新文件。
     /// 失败返回 Err（磁盘错误 → IoError / 序列化错误 → Serde），tmp 文件可能残留但下次 persist 覆盖。
-    fn persist(&self) -> Result<(), TodoError> {
+    /// 调用方须在成功后才提交内存状态（INV-002：失败不改内存）。
+    fn persist(&self, items: &[TodoItem]) -> Result<(), TodoError> {
         // 首次使用时数据目录可能不存在（应用数据目录），先确保父目录
         if let Some(parent) = self.path.parent() {
             fs::create_dir_all(parent)?;
         }
-        let file = TodoFile { version: 1, items: self.items.clone() };
+        let file = TodoFile {
+            version: 1,
+            items: items.to_vec(),
+        };
         let json = serde_json::to_string_pretty(&file)?;
         let tmp = PathBuf::from(format!("{}.tmp", self.path.display()));
         fs::write(&tmp, json)?;
@@ -167,8 +211,14 @@ impl TodoStore {
 
     /// 把损坏/版本不符的旧文件改名为 `<name>.corrupt-<unix秒>`（Reliability：备份恢复）。
     fn backup_corrupt(path: &Path) {
-        let file_name = path.file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_else(|| "todos.json".to_string());
-        let ts = SystemTime::now().duration_since(UNIX_EPOCH).map(|d| d.as_secs()).unwrap_or(0);
+        let file_name = path
+            .file_name()
+            .map(|n| n.to_string_lossy().into_owned())
+            .unwrap_or_else(|| "todos.json".to_string());
+        let ts = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .map(|d| d.as_secs())
+            .unwrap_or(0);
         let backup = path.with_file_name(format!("{file_name}.corrupt-{ts}"));
         if let Err(e) = fs::rename(path, &backup) {
             eprintln!("todo-store: 备份损坏文件失败：{e}");
@@ -187,26 +237,51 @@ impl TodoStore {
 mod tests {
     use super::*;
     use std::fs;
-    use std::path::PathBuf;
+    use std::ops::Deref;
+    use std::path::{Path, PathBuf};
     use std::sync::atomic::{AtomicU32, Ordering};
 
-    /// 生成唯一临时目录：std::env::temp_dir() 下以 pid + 自增序号命名，避免并行测试冲突。
-    fn unique_temp_dir(name: &str) -> PathBuf {
-        static SEQ: AtomicU32 = AtomicU32::new(0);
-        let dir = std::env::temp_dir().join(format!(
-            "todo-store-test-{}-{}-{}",
-            std::process::id(),
-            name,
-            SEQ.fetch_add(1, Ordering::SeqCst)
-        ));
-        fs::create_dir_all(&dir).expect("测试前置：创建临时目录");
-        dir
+    /// 测试临时目录守卫：Drop 时自动清理，避免残留。
+    struct TempDir(PathBuf);
+
+    impl TempDir {
+        fn new(name: &str) -> Self {
+            static SEQ: AtomicU32 = AtomicU32::new(0);
+            let dir = std::env::temp_dir().join(format!(
+                "todo-store-test-{}-{}-{}",
+                std::process::id(),
+                name,
+                SEQ.fetch_add(1, Ordering::SeqCst)
+            ));
+            fs::create_dir_all(&dir).expect("测试前置：创建临时目录");
+            Self(dir)
+        }
+    }
+
+    impl Deref for TempDir {
+        type Target = Path;
+
+        fn deref(&self) -> &Path {
+            &self.0
+        }
+    }
+
+    impl AsRef<Path> for TempDir {
+        fn as_ref(&self) -> &Path {
+            &self.0
+        }
+    }
+
+    impl Drop for TempDir {
+        fn drop(&mut self) {
+            let _ = fs::remove_dir_all(&self.0);
+        }
     }
 
     /// 场景 1：path 不存在（首次启动）→ load 成功且列表为空。
     #[test]
     fn load_missing_file_returns_empty_store() {
-        let dir = unique_temp_dir("missing");
+        let dir = TempDir::new("missing");
         let path = dir.join("todos.json");
         let store = TodoStore::load(&path).expect("文件缺失应返回空库而非错误");
         assert!(store.list().is_empty(), "文件缺失时列表应为空");
@@ -215,7 +290,7 @@ mod tests {
     /// 场景 2：JSON 损坏 → 原文件被改名备份（.corrupt-<timestamp>），load 返回空库。
     #[test]
     fn load_corrupt_json_backs_up_and_returns_empty() {
-        let dir = unique_temp_dir("corrupt");
+        let dir = TempDir::new("corrupt");
         let path = dir.join("todos.json");
         fs::write(&path, "{ 这不是合法 JSON ").expect("测试前置：写入损坏文件");
         let store = TodoStore::load(&path).expect("损坏文件应备份后返回空库");
@@ -235,7 +310,7 @@ mod tests {
     /// 场景 3：version 不符（版本迁移预留）→ 备份并空库。
     #[test]
     fn load_version_mismatch_backs_up_and_returns_empty() {
-        let dir = unique_temp_dir("version");
+        let dir = TempDir::new("version");
         let path = dir.join("todos.json");
         fs::write(&path, r#"{"version": 2, "items": []}"#).expect("测试前置：写入未来版本文件");
         let store = TodoStore::load(&path).expect("版本不符应备份后返回空库");
@@ -245,7 +320,7 @@ mod tests {
     /// 场景 4：合法数据文件（中文文本）→ load 后列表与完成状态一致、中文无乱码。
     #[test]
     fn load_valid_file_preserves_chinese_text() {
-        let dir = unique_temp_dir("valid");
+        let dir = TempDir::new("valid");
         let path = dir.join("todos.json");
         fs::write(
             &path,
@@ -268,12 +343,14 @@ mod tests {
     /// 预期：add 返回条目（pending、非空 id、created_at > 0），连续添加顺序 = 添加顺序。
     #[test]
     fn add_appends_in_order_and_returns_item() {
-        let dir = unique_temp_dir("add-order");
+        let dir = TempDir::new("add-order");
         let path = dir.join("todos.json");
         let mut store = TodoStore::load(&path).expect("空库可加载");
 
         let item1 = store.add("买牛奶".to_string()).expect("非空添加应成功");
-        let item2 = store.add("  开会  ".to_string()).expect("带首尾空格添加应成功");
+        let item2 = store
+            .add("  开会  ".to_string())
+            .expect("带首尾空格添加应成功");
 
         assert!(!item1.id.is_empty(), "应生成 uuid id");
         assert_eq!(item1.text, "买牛奶");
@@ -291,7 +368,7 @@ mod tests {
     /// 预期：空串、纯空格、纯 Tab 均返回 InvalidInput 且列表不变。
     #[test]
     fn add_rejects_empty_and_whitespace() {
-        let dir = unique_temp_dir("add-blank");
+        let dir = TempDir::new("add-blank");
         let path = dir.join("todos.json");
         let mut store = TodoStore::load(&path).expect("空库可加载");
 
@@ -309,7 +386,7 @@ mod tests {
     /// 预期：中文文本无乱码、done 状态保留、追加顺序保留。
     #[test]
     fn persist_then_reload_roundtrip_chinese() {
-        let dir = unique_temp_dir("roundtrip");
+        let dir = TempDir::new("roundtrip");
         let path = dir.join("todos.json");
         let mut store = TodoStore::load(&path).expect("空库可加载");
         store.add("买牛奶".to_string()).expect("添加成功");
@@ -329,16 +406,12 @@ mod tests {
     /// 预期：persist 成功后 `todos.json.tmp` 不存在；磁盘上只有最终文件。
     #[test]
     fn persist_success_leaves_no_tmp_file() {
-        let dir = unique_temp_dir("no-tmp");
+        let dir = TempDir::new("no-tmp");
         let path = dir.join("todos.json");
         let mut store = TodoStore::load(&path).expect("空库可加载");
         store.add("第一条".to_string()).expect("添加并持久化成功");
 
-        assert_eq!(
-            path.exists(),
-            true,
-            "持久化后数据文件应存在"
-        );
+        assert_eq!(path.exists(), true, "持久化后数据文件应存在");
         let tmp = PathBuf::from(format!("{}.tmp", path.display()));
         assert_eq!(tmp.exists(), false, "原子写成功后 tmp 文件不得残留");
     }
@@ -349,7 +422,7 @@ mod tests {
     /// 预期：第一次 toggle → done=true；第二次 toggle → done=false；重载后状态与内存一致。
     #[test]
     fn toggle_roundtrip_and_persists() {
-        let dir = unique_temp_dir("toggle");
+        let dir = TempDir::new("toggle");
         let path = dir.join("todos.json");
         let mut store = TodoStore::load(&path).expect("空库可加载");
         let item = store.add("开会".to_string()).expect("添加成功");
@@ -378,7 +451,7 @@ mod tests {
     /// 预期：删除后重载不存在；已勾选完成的条目同样可删；未连接删除不连带其他条目。
     #[test]
     fn remove_persists_and_deletes_completed() {
-        let dir = unique_temp_dir("remove");
+        let dir = TempDir::new("remove");
         let path = dir.join("todos.json");
         let mut store = TodoStore::load(&path).expect("空库可加载");
         let a = store.add("买牛奶".to_string()).expect("添加成功");
@@ -398,15 +471,110 @@ mod tests {
         assert_eq!(reloaded.list()[0].id, a.id);
     }
 
-    /// 场景 11：对不存在的 id（含已删除 id）执行 toggle/remove → NotFound。
+    /// 场景 11：修改文本后内存与磁盘一致；中文往返、完成状态保持。
+    #[test]
+    fn update_modifies_text_and_persists() {
+        let dir = TempDir::new("update");
+        let path = dir.join("todos.json");
+        let mut store = TodoStore::load(&path).expect("空库可加载");
+        let item = store.add("买牛奶".to_string()).expect("添加成功");
+
+        let updated = store
+            .update(&item.id, "  买牛奶和面包  ".to_string())
+            .expect("修改成功");
+        assert_eq!(updated.id, item.id);
+        assert_eq!(updated.text, "买牛奶和面包", "文本应 trim 后保存");
+        assert_eq!(updated.done, false, "修改不应影响完成状态");
+
+        let reloaded = TodoStore::load(&path).expect("重载成功");
+        assert_eq!(
+            reloaded.list()[0].text,
+            "买牛奶和面包",
+            "修改结果应已持久化"
+        );
+    }
+
+    /// 场景 12：空/纯空白文本拒绝；未知 id 返回 NotFound；失败不得改变列表。
+    #[test]
+    fn update_rejects_empty_and_unknown_id() {
+        let dir = TempDir::new("update-bad");
+        let path = dir.join("todos.json");
+        let mut store = TodoStore::load(&path).expect("空库可加载");
+        let item = store.add("开会".to_string()).expect("添加成功");
+
+        for blank in ["", "   ", "\t", "\n"] {
+            let err = store
+                .update(&item.id, blank.to_string())
+                .expect_err("空白文本应被拒绝");
+            assert!(
+                matches!(err, TodoError::InvalidInput),
+                "应为 InvalidInput，实际: {err:?}"
+            );
+        }
+        assert!(matches!(
+            store.update("不存在", "有效文本".to_string()).unwrap_err(),
+            TodoError::NotFound
+        ));
+        assert_eq!(store.list()[0].text, "开会", "失败操作不得改变文本");
+    }
+
+    /// 场景 13：对不存在的 id（含已删除 id）执行 toggle/remove → NotFound。
     #[test]
     fn toggle_remove_unknown_id_returns_not_found() {
-        let dir = unique_temp_dir("notfound");
+        let dir = TempDir::new("notfound");
         let path = dir.join("todos.json");
         let mut store = TodoStore::load(&path).expect("空库可加载");
 
-        assert!(matches!(store.toggle("不存在").unwrap_err(), TodoError::NotFound));
-        assert!(matches!(store.remove("不存在").unwrap_err(), TodoError::NotFound));
+        assert!(matches!(
+            store.toggle("不存在").unwrap_err(),
+            TodoError::NotFound
+        ));
+        assert!(matches!(
+            store.remove("不存在").unwrap_err(),
+            TodoError::NotFound
+        ));
         assert!(store.list().is_empty(), "未知 id 操作不得改变列表");
+    }
+
+    /// 场景 12：persist 失败（数据目录被文件占位）→ 内存状态必须回滚，
+    /// 不允许出现「命令返回 Err 但内存已变更」的半更新状态（INV-002）。
+    #[test]
+    fn mutation_rolls_back_when_persist_fails() {
+        let dir = TempDir::new("persist-fail");
+        let data_dir = dir.join("data");
+        let path = data_dir.join("todos.json");
+        let mut store = TodoStore::load(&path).expect("空库可加载");
+        let item = store.add("任务A".to_string()).expect("正常添加并落盘");
+
+        // 用文件占据原数据目录：后续 persist 的 create_dir_all 会失败
+        fs::remove_dir_all(&data_dir).expect("移除数据目录");
+        fs::write(&data_dir, "blocked").expect("用文件占位原数据目录");
+
+        // toggle 失败：done 不变
+        let err = store.toggle(&item.id).expect_err("persist 应失败");
+        assert!(
+            matches!(err, TodoError::Io(_)),
+            "应为 Io 错误，实际: {err:?}"
+        );
+        assert_eq!(store.list()[0].done, false, "toggle 失败后 done 应保持不变");
+
+        // remove 失败：条目仍在且顺序不变
+        let err = store.remove(&item.id).expect_err("persist 应失败");
+        assert!(
+            matches!(err, TodoError::Io(_)),
+            "应为 Io 错误，实际: {err:?}"
+        );
+        assert_eq!(store.list().len(), 1, "remove 失败后条目应保留");
+        assert_eq!(store.list()[0].id, item.id, "remove 失败后条目 id 不变");
+
+        // update 失败：文本不变
+        let err = store
+            .update(&item.id, "改名".to_string())
+            .expect_err("persist 应失败");
+        assert!(
+            matches!(err, TodoError::Io(_)),
+            "应为 Io 错误，实际: {err:?}"
+        );
+        assert_eq!(store.list()[0].text, "任务A", "update 失败后文本应保持不变");
     }
 }
