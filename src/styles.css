@@ -26,6 +26,8 @@ body {
   overflow: hidden;
   display: flex;
   flex-direction: column;
+  /* 注意：本机 WebKit 只识别带前缀写法，无前缀 user-select 会被丢弃 */
+  -webkit-user-select: none;
   user-select: none;
 }
 
@@ -83,6 +85,7 @@ body {
   background: #fff;
   box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
   transition: border-color 140ms ease, box-shadow 140ms ease, background 140ms ease;
+  -webkit-user-select: text;
   user-select: text;
 }
 #todo-input::placeholder { color: #a6b0c3; }
@@ -165,7 +168,6 @@ body {
   font-size: 14px;
   line-height: 1.5;
   overflow-wrap: break-word;
-  user-select: text;
   transition: color 120ms ease, opacity 120ms ease;
 }
 
@@ -214,6 +216,7 @@ body {
   padding: 4px 8px;
   background: rgba(59, 130, 246, 0.08);
   box-shadow: none;
+  -webkit-user-select: text;
   user-select: text;
   white-space: pre-wrap;
   word-break: break-word;

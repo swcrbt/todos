@@ -25,6 +25,8 @@ body {
   background: var(--bg-desktop);
   color: var(--text-main);
   overflow: hidden;
+  /* 与应用端一致：本机 WebKit 只识别带前缀写法 */
+  -webkit-user-select: none;
   user-select: none;
 }
 
@@ -139,6 +141,7 @@ body {
   outline: none;
   background: #fafbfc;
   transition: border-color 120ms ease, box-shadow 120ms ease;
+  -webkit-user-select: text;
   user-select: text;
 }
 #todo-input::placeholder { color: #a8adb4; }
@@ -162,6 +165,9 @@ body {
   padding: 9px 8px;
   border-radius: 8px;
   transition: background 120ms ease;
+  /* 与应用端一致：静态行禁止选中，防止双击落在文本外时绘制选区间隙色条 */
+  -webkit-user-select: none;
+  user-select: none;
 }
 .todo-item:hover, .todo-item:focus-within { background: #f3f5f7; }
 
@@ -178,7 +184,6 @@ body {
   font-size: 14px;
   line-height: 1.45;
   overflow-wrap: break-word;
-  user-select: text;
   transition: color 120ms ease;
 }
 
