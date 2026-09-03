@@ -98,6 +98,7 @@ function startEdit(text, item) {
     "white-space:pre-wrap",
     "word-break:break-word",
     "user-select:text",
+    "-webkit-user-select:text",
     "cursor:text",
   ].join(";");
 

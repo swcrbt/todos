@@ -116,6 +116,11 @@ body {
   border: 1px solid #edf1f9;
   box-shadow: 0 1px 2px rgba(15, 23, 42, 0.03);
   transition: background 120ms ease, box-shadow 120ms ease, border-color 120ms ease;
+  /* 静态行禁止文本选中：双击落在文字外时会形成跨块边界的畸形选区，
+     WebKit 会为它在行下方绘制一条整宽的选区间隙色条（表现为“蓝色下划线”）。
+     编辑态编辑器通过 user-select:text 恢复可选。 */
+  -webkit-user-select: none;
+  user-select: none;
 }
 .todo-item:hover {
   background: #f9fbff;
