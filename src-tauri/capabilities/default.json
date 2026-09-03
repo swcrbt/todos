@@ -1,6 +1,6 @@
 {
   "identifier": "default",
-  "description": "tray-todo 卡片窗口能力：允许前端调用 core 事件/窗口等基础 API",
+  "description": "todos 卡片窗口能力：允许前端调用 core 事件/窗口等基础 API",
   "windows": ["card"],
   "permissions": ["core:default"]
 }

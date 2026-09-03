@@ -1,12 +1,12 @@
 [package]
-name = "tray-todo"
+name = "todos"
 version = "0.1.0"
 description = "托盘待办：系统托盘常驻的轻量待办卡片（Tauri v2）"
 edition = "2021"
 rust-version = "1.85"
 
 [lib]
-name = "tray_todo_lib"
+name = "todos_lib"
 crate-type = ["staticlib", "cdylib", "rlib"]
 
 [build-dependencies]

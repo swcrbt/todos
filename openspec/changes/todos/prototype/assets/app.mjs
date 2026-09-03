@@ -1,4 +1,4 @@
-// tray-todo 原型交互逻辑（对应真实前端 app.mjs 的契约；仅原型演示使用）
+// todos 原型交互逻辑（对应真实前端 app.mjs 的契约；仅原型演示使用）
 // 数据访问仅经 mock-data.mjs（对应 RUST todo-store 的 command 层语义）。
 
 import * as store from "./mock-data.mjs";

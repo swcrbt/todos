@@ -29,7 +29,7 @@ todos/
 │     ├─ commands.rs          # Tauri command 层
 │     ├─ tray.rs              # 托盘图标
 │     └─ card.rs              # 无边框卡片窗口
-└─ openspec/changes/tray-todo/  # OpenSpec 设计/原型制品
+└─ openspec/changes/todos/  # OpenSpec 设计/原型制品
 ```
 
 ## 环境要求

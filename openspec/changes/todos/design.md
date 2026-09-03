@@ -1,4 +1,4 @@
-# Design: tray-todo
+# Design: todos
 
 ## Design Inputs
 
@@ -13,10 +13,10 @@
   - SCN-TRAY-001-A, SCN-TRAY-002-A, SCN-TRAY-002-B, SCN-TRAY-003-A
   - SCN-TODO-001-A, SCN-TODO-001-B, SCN-TODO-002-A, SCN-TODO-002-B, SCN-TODO-003-A, SCN-TODO-003-B, SCN-TODO-004-A
 - Context Files Read:
-  - `openspec/changes/tray-todo/proposal.md`
-  - `openspec/changes/tray-todo/specs/tray-card/spec.md`
-  - `openspec/changes/tray-todo/specs/todo-management/spec.md`
-  - `openspec/changes/tray-todo/.openspec.yaml`
+  - `openspec/changes/todos/proposal.md`
+  - `openspec/changes/todos/specs/tray-card/spec.md`
+  - `openspec/changes/todos/specs/todo-management/spec.md`
+  - `openspec/changes/todos/.openspec.yaml`
   - OpenSpec 内置 `spec-driven` schema（模板来源）
 - Additional Sources Read:
   - `openspec status` / `openspec instructions design` 输出（change 状态、模板与指令）
@@ -494,12 +494,12 @@ UI change，单视图卡片窗口。所有文案为中文（FACT-009）。
 ## Design Validation Evidence
 
 - Validation Commands:
-  - `openspec validate "tray-todo" --type change --json` → `{"items":[{"id":"tray-todo","type":"change","valid":true,"issues":[]}],"summary":{"totals":{"items":1,"passed":1,"failed":0}}}`
-  - `node openspec/changes/tray-todo/prototype/tools/run-logic-check.mjs` → `LOGIC_CONTRACT_OK`（isValidInput 空/纯空白/非空/trim/防御分支 + formatCount 中文文案全部断言通过）
-  - `python3 -m http.server 8701 --directory openspec/changes/tray-todo/prototype`（UI 预览入口，HTTP 200）
-  - Chrome headless（`--remote-debugging-port=9333`，Chrome 151）+ `node openspec/changes/tray-todo/prototype/tools/validate-ui.mjs`（CDP 真实交互）
+  - `openspec validate "todos" --type change --json` → `{"items":[{"id":"todos","type":"change","valid":true,"issues":[]}],"summary":{"totals":{"items":1,"passed":1,"failed":0}}}`
+  - `node openspec/changes/todos/prototype/tools/run-logic-check.mjs` → `LOGIC_CONTRACT_OK`（isValidInput 空/纯空白/非空/trim/防御分支 + formatCount 中文文案全部断言通过）
+  - `python3 -m http.server 8701 --directory openspec/changes/todos/prototype`（UI 预览入口，HTTP 200）
+  - Chrome headless（`--remote-debugging-port=9333`，Chrome 151）+ `node openspec/changes/todos/prototype/tools/validate-ui.mjs`（CDP 真实交互）
 - Validation Results: `openspec validate` 1/1 change valid、0 issues；UI 驱动 20/20 断言 PASS、0 运行时错误（consoleErrors/exceptions/logErrors 均为空）；logic 契约检查通过。详见下方 UI Evidence。
-- Prototype Path: `openspec/changes/tray-todo/prototype/`（入口 `index.html`；`README.md` 含覆盖范围、mock 映射与 Build 提示；`tools/validate-ui.mjs` 为可复跑的 CDP 验证驱动）
+- Prototype Path: `openspec/changes/todos/prototype/`（入口 `index.html`；`README.md` 含覆盖范围、mock 映射与 Build 提示；`tools/validate-ui.mjs` 为可复跑的 CDP 验证驱动）
 - UI Evidence:
   - 预览入口：`http://127.0.0.1:8701/index.html`（python3 http.server，真实浏览器 Chrome headless 加载）
   - 实际执行并通过（真实鼠标/键盘事件注入，非静态检查）：
@@ -528,7 +528,7 @@ UI change，单视图卡片窗口。所有文案为中文（FACT-009）。
 
 ## Recovery Checkpoint
 
-- Design Status: completed（design.md v1 已写入；`openspec validate "tray-todo" --type change --json` 于 2026-08-26 结果为 `valid: true`、1/1 passed、0 issues；prototype 与 UI Evidence 已完成）
+- Design Status: completed（design.md v1 已写入；`openspec validate "todos" --type change --json` 于 2026-08-26 结果为 `valid: true`、1/1 passed、0 issues；prototype 与 UI Evidence 已完成）
 - Last Completed Section: 全部章节完成，含 Design Validation Evidence 实况固化；prototype 生成、CDP 真实 UI 验证（20/20 PASS、零运行时错误、11 组截图）与进程清理均已完成
 - Unresolved Decisions: 无。DEC-001~010 全部 accepted；唯一有待真实验证的平台行为（RISK-003/004/006，macOS/Windows 托盘与焦点时序）全部有明确缓解与 Apply 阶段验证项，不阻塞
 - Required Revalidation: 若 proposal/任一 spec 制品摘要变化 → 重读 Design Handoff 与对应 REQ/SCN 后重校本设计；若进入下一步（tasks）前开放任何 CR → 先由 Plan 决策

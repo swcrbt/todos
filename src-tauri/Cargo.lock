@@ -3754,6 +3754,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "todos"
+version = "0.1.0"
+dependencies = [
+ "objc2",
+ "objc2-web-kit",
+ "serde",
+ "serde_json",
+ "tauri",
+ "tauri-build",
+ "tauri-plugin-single-instance",
+ "todo-store",
+]
+
+[[package]]
 name = "tokio"
 version = "1.53.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3996,20 +4010,6 @@ dependencies = [
  "serde",
  "thiserror 2.0.20",
  "windows-sys 0.61.2",
-]
-
-[[package]]
-name = "tray-todo"
-version = "0.1.0"
-dependencies = [
- "objc2",
- "objc2-web-kit",
- "serde",
- "serde_json",
- "tauri",
- "tauri-build",
- "tauri-plugin-single-instance",
- "todo-store",
 ]
 
 [[package]]

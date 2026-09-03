@@ -1,11 +1,11 @@
-# tray-todo 待办卡片原型（Design 阶段 UI 验证原型）
+# todos 待办卡片原型（Design 阶段 UI 验证原型）
 
-本原型用于 Design 阶段真实 UI 验证：表达 `tray-todo` change 的全部用户可见交互与状态。**它不是业务实现**，数据使用 localStorage mock，无任何真实后端、Tauri 运行时或业务源码。
+本原型用于 Design 阶段真实 UI 验证：表达 `todos` change 的全部用户可见交互与状态。**它不是业务实现**，数据使用 localStorage mock，无任何真实后端、Tauri 运行时或业务源码。
 
 ## 入口与真实预览方式
 
 - 入口：`index.html`（页面即"模拟 macOS 桌面 + 待办卡片"）
-- 预览：`python3 -m http.server 8701 --directory openspec/changes/tray-todo/prototype`，浏览器打开 `http://127.0.0.1:8701/index.html`
+- 预览：`python3 -m http.server 8701 --directory openspec/changes/todos/prototype`，浏览器打开 `http://127.0.0.1:8701/index.html`
 - UI Evidence（截图与断言）：`screenshots/` 目录
 
 ## 覆盖与未覆盖范围
@@ -27,10 +27,10 @@
 
 ## Context Files
 
-- `openspec/changes/tray-todo/proposal.md`（Design Handoff）
-- `openspec/changes/tray-todo/specs/tray-card/spec.md`（CAP-001，REQ-TRAY-001~003）
-- `openspec/changes/tray-todo/specs/todo-management/spec.md`（CAP-002，REQ-TODO-001~004）
-- `openspec/changes/tray-todo/design.md`（本原型的事实来源）
+- `openspec/changes/todos/proposal.md`（Design Handoff）
+- `openspec/changes/todos/specs/tray-card/spec.md`（CAP-001，REQ-TRAY-001~003）
+- `openspec/changes/todos/specs/todo-management/spec.md`（CAP-002，REQ-TODO-001~004）
+- `openspec/changes/todos/design.md`（本原型的事实来源）
 
 ## 实现依据的设计决策
 

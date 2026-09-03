@@ -1,6 +1,6 @@
-// tray-todo 原型真实 UI 验证驱动（CDP）
+// todos 原型真实 UI 验证驱动（CDP）
 // 运行前提：
-//   1) python3 -m http.server 8701 --directory <本仓库>/openspec/changes/tray-todo/prototype
+//   1) python3 -m http.server 8701 --directory <本仓库>/openspec/changes/todos/prototype
 //   2) Chrome headless："/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" \
 //        --headless=new --remote-debugging-port=9333 --user-data-dir=<tmp> \
 //        --no-first-run --disable-gpu --window-size=1280,800 about:blank

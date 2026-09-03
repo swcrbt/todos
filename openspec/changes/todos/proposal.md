@@ -1,8 +1,8 @@
-# Change: tray-todo
+# Change: todos
 
 ## Metadata
 
-- Change ID: tray-todo
+- Change ID: todos
 - Schema / Version: spec-driven
 - Proposal Revision: 1
 - Current Stage: propose

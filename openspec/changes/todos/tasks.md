@@ -1,4 +1,4 @@
-# Tasks: tray-todo
+# Tasks: todos
 
 ## Plan Metadata
 
@@ -454,7 +454,7 @@
 
 ## Full Verification
 
-- Commands: `cargo test -p todo-store`；`node --test src/logic.test.mjs`；`cargo tauri dev`（SEAM-003 手动清单）；Windows 环境 `tauri build` + 验收清单（SEAM-004）；`cargo tauri build`（macOS 打包）；`openspec validate "tray-todo" --type change --json`
+- Commands: `cargo test -p todo-store`；`node --test src/logic.test.mjs`；`cargo tauri dev`（SEAM-003 手动清单）；Windows 环境 `tauri build` + 验收清单（SEAM-004）；`cargo tauri build`（macOS 打包）；`openspec validate "todos" --type change --json`
 - Results: pending（Apply 完成后填写：全部命令退出码与证据、跨完整性结果）
 - Environment / Preconditions: macOS 开发机（Xcode 命令行工具 + Rust 工具链 + Node ≥ 20）；Windows 验证环境待用户确认（DEF-DESIGN-002）；无网络/账号要求
 - UI Evidence: SEAM-003/004 验收清单的截图与记录；错误横幅触发路径记录；console 无错误声明；进程清理确认
@@ -470,4 +470,4 @@
 - Confirmed Changed Files: `tasks.md`（本次）；既有制品 proposal.md/specs/design.md/prototype 未改动
 - Required Revalidation: 若 proposal/specs/design 制品摘要变化（含 CR 开启），重读对应章节并重核 Traceability Matrix 后继续；若环境（Rust/Node 版本）与 design 记录不符，先重验 SEAM-001/002 可运行性
 - Resume Condition: 用户批准 Apply 后，openspec-build 从 TASK-1.1 开始按依赖顺序实施，先写失败测试再最小实现
-- Next Permitted Action: 交回 `openspec-plan`——展示本计划、design 与 prototype 后，请求用户批准 `tray-todo` 进入 Apply（`openspec-build` 执行）
+- Next Permitted Action: 交回 `openspec-plan`——展示本计划、design 与 prototype 后，请求用户批准 `todos` 进入 Apply（`openspec-build` 执行）
