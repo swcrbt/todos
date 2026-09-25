@@ -3,7 +3,7 @@ name = "todos"
 version = "0.1.0"
 description = "托盘待办：系统托盘常驻的轻量待办卡片（Tauri v2）"
 edition = "2021"
-rust-version = "1.85"
+rust-version = "1.89"
 
 [lib]
 name = "todos_lib"
@@ -24,5 +24,5 @@ objc2 = "0.6"
 objc2-web-kit = "0.3"
 
 [workspace]
-members = ["crates/todo-store"]
+members = ["crates/todo-store", "crates/todos-mcp"]
 resolver = "2"

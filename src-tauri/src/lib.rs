@@ -21,9 +21,11 @@ pub fn run() {
             #[cfg(target_os = "macos")]
             app.set_activation_policy(tauri::ActivationPolicy::Accessory);
 
-            // 数据路径：平台应用数据目录/todos.json；文件缺失→空库，损坏→备份并空库
-            let data_dir = app.path().app_data_dir()?;
-            let store = TodoStore::load(data_dir.join("todos.json"))?;
+            // 数据路径：与 MCP 进程共用同一解析规则（todo_store::data_file_path），
+            // 与 Tauri app_data_dir 等价；支持 TODOS_DATA_PATH 环境变量覆盖。
+            // 文件缺失→空库，损坏→备份并空库
+            let data_path = todo_store::data_file_path(&app.config().identifier)?;
+            let store = TodoStore::load(data_path)?;
             // Tauri State 为共享引用，可变数据层需经 Mutex 单写者访问（INV-001）
             app.manage(Mutex::new(store));
 

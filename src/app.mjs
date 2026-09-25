@@ -196,8 +196,8 @@ async function onRemove(id) {
   await refresh();
 }
 
-// 窗口显示后聚焦输入框（后端在 show 后通知）
-tauriEvent.listen("card-shown", () => { inputEl.focus(); });
+// 窗口显示后聚焦输入框（后端在 show 后通知）；同时刷新列表以同步 MCP 等外部变更
+tauriEvent.listen("card-shown", () => { inputEl.focus(); refresh().catch((err) => showBanner(String(err))); });
 // 窗口隐藏时丢弃未提交输入并清除错误横幅（后端在 hide 时通知）
 tauriEvent.listen("card-hidden", () => {
   inputEl.value = "";

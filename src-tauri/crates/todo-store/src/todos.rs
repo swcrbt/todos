@@ -5,10 +5,67 @@
 
 use serde::{Deserialize, Serialize};
 use std::fs;
+use std::fs::File;
 use std::io;
 use std::path::{Path, PathBuf};
 use std::time::{SystemTime, UNIX_EPOCH};
 use uuid::Uuid;
+
+/// 环境变量：直接指定数据文件完整路径（MCP 进程/测试覆盖默认解析用）。
+pub const DATA_PATH_ENV: &str = "TODOS_DATA_PATH";
+
+/// 解析默认数据文件路径：平台应用数据目录/<identifier>/todos.json。
+/// 解析规则与 Tauri v2 `app_data_dir` 保持一致（macOS: ~/Library/Application Support，
+/// Windows: %APPDATA%，Linux: $XDG_DATA_HOME 或 ~/.local/share），
+/// 使独立进程（如 MCP 服务器）无需 Tauri 运行时即可定位同一份数据文件。
+/// 设置环境变量 TODOS_DATA_PATH 时直接返回其值（非空），便于测试与自定义部署。
+pub fn data_file_path(identifier: &str) -> Result<PathBuf, TodoError> {
+    if let Ok(custom) = std::env::var(DATA_PATH_ENV) {
+        let custom = custom.trim();
+        if !custom.is_empty() {
+            return Ok(PathBuf::from(custom));
+        }
+    }
+    let base = platform_data_dir().ok_or_else(|| {
+        TodoError::Io(io::Error::new(
+            io::ErrorKind::NotFound,
+            "无法定位平台应用数据目录（缺少 HOME/APPDATA 环境变量）",
+        ))
+    })?;
+    Ok(base.join(identifier).join("todos.json"))
+}
+
+/// 平台应用数据目录（不含 identifier 后缀），规则对齐 Tauri/dirs crate。
+#[cfg(target_os = "macos")]
+fn platform_data_dir() -> Option<PathBuf> {
+    std::env::var_os("HOME").map(|home| PathBuf::from(home).join("Library/Application Support"))
+}
+
+/// Windows：Roaming 应用数据目录（%APPDATA%）。
+#[cfg(target_os = "windows")]
+fn platform_data_dir() -> Option<PathBuf> {
+    std::env::var_os("APPDATA").map(PathBuf::from)
+}
+
+/// Linux/其他 Unix：遵循 XDG 规范（$XDG_DATA_HOME 或 ~/.local/share）。
+#[cfg(all(unix, not(target_os = "macos")))]
+fn platform_data_dir() -> Option<PathBuf> {
+    if let Some(xdg) = std::env::var_os("XDG_DATA_HOME") {
+        if !xdg.is_empty() {
+            return Some(PathBuf::from(xdg));
+        }
+    }
+    std::env::var_os("HOME").map(|home| PathBuf::from(home).join(".local/share"))
+}
+
+/// 数据文件跨进程排他锁守卫（advisory lock，进程崩溃由 OS 自动释放）。
+/// 持有期间其他协作进程（App 与 MCP 服务器）的 lock_and_reload 会等待；
+/// Drop 即释放。锁对象是数据文件旁的 `<name>.lock` 占位文件，
+/// 不锁数据文件本身（persist 用 rename 原子替换，文件主体会变）。
+#[derive(Debug)]
+pub struct StoreLock {
+    _file: File,
+}
 
 /// 单个待办条目（字段契约：id/text/done/created_at）。
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -109,6 +166,34 @@ impl TodoStore {
     /// 返回追加顺序的完整列表副本。
     pub fn list(&self) -> Vec<TodoItem> {
         self.items.clone()
+    }
+
+    /// 从磁盘重新加载并覆盖内存态（损坏恢复语义与 load 一致）。
+    /// 用于多进程（App + MCP 服务器）共享数据文件时感知对方写入。
+    pub fn reload(&mut self) -> Result<(), TodoError> {
+        let fresh = Self::load(&self.path)?;
+        self.items = fresh.items;
+        Ok(())
+    }
+
+    /// 获取数据文件的跨进程排他锁并 reload，返回锁守卫（Drop 释放）。
+    /// 协作进程（App 命令层、MCP 服务器）的「读-改-写」应在持锁期间完成，
+    /// 避免两个进程基于过期内存态互相覆盖写入（丢失更新）。
+    pub fn lock_and_reload(&mut self) -> Result<StoreLock, TodoError> {
+        let lock_path = self.path.with_file_name(format!(
+            "{}.lock",
+            self.path
+                .file_name()
+                .map(|n| n.to_string_lossy().into_owned())
+                .unwrap_or_else(|| "todos.json".to_string())
+        ));
+        if let Some(parent) = lock_path.parent() {
+            fs::create_dir_all(parent)?;
+        }
+        let file = File::create(&lock_path)?;
+        file.lock()?;
+        self.reload()?;
+        Ok(StoreLock { _file: file })
     }
 
     /// 添加待办。
@@ -576,5 +661,64 @@ mod tests {
             "应为 Io 错误，实际: {err:?}"
         );
         assert_eq!(store.list()[0].text, "任务A", "update 失败后文本应保持不变");
+    }
+
+    // ===== 多进程协作：reload / 跨进程锁 / 路径解析 =====
+
+    /// 场景：另一实例写入后，reload 能感知磁盘上的变更（MCP 与 App 共享数据文件）。
+    #[test]
+    fn reload_picks_up_external_writes() {
+        let dir = TempDir::new("reload");
+        let path = dir.join("todos.json");
+        let mut app_store = TodoStore::load(&path).expect("空库可加载");
+        app_store.add("应用添加".to_string()).expect("添加成功");
+
+        // 模拟 MCP 进程：同一文件的另一个实例追加写入
+        let mut mcp_store = TodoStore::load(&path).expect("重载成功");
+        mcp_store.add("AI 添加".to_string()).expect("添加成功");
+
+        assert_eq!(app_store.list().len(), 1, "reload 前内存态不变");
+        app_store.reload().expect("reload 成功");
+        let items = app_store.list();
+        assert_eq!(items.len(), 2, "reload 后应看到对方写入");
+        assert_eq!(items[1].text, "AI 添加");
+    }
+
+    /// 场景：lock_and_reload 持锁期间完成读-改-写，两个协作实例互不丢失更新。
+    #[test]
+    fn lock_and_reload_serializes_read_modify_write() {
+        let dir = TempDir::new("lock");
+        let path = dir.join("todos.json");
+        let mut a = TodoStore::load(&path).expect("空库可加载");
+        let mut b = TodoStore::load(&path).expect("空库可加载");
+
+        // 同一进程顺序持锁：a 写入后释放，b 持锁 reload 应看到 a 的写入
+        {
+            let _guard = a.lock_and_reload().expect("a 持锁成功");
+            a.add("来自 A".to_string()).expect("a 添加成功");
+        }
+        {
+            let _guard = b.lock_and_reload().expect("b 持锁成功");
+            b.add("来自 B".to_string()).expect("b 添加成功");
+        }
+
+        let reloaded = TodoStore::load(&path).expect("重载成功");
+        let texts: Vec<String> = reloaded.list().iter().map(|i| i.text.clone()).collect();
+        assert_eq!(texts, ["来自 A", "来自 B"], "两次写入都不得丢失");
+
+        // 锁占位文件生成在数据文件旁
+        assert!(dir.join("todos.json.lock").exists(), "应生成锁占位文件");
+    }
+
+    /// 场景：TODOS_DATA_PATH 环境变量覆盖默认路径解析。
+    /// 注意：环境变量为进程级状态，本测试是唯一读写该变量的测试。
+    #[test]
+    fn data_file_path_respects_env_override() {
+        let dir = TempDir::new("env-override");
+        let custom = dir.join("custom.json");
+        std::env::set_var(DATA_PATH_ENV, &custom);
+        let resolved = data_file_path("com.example.app").expect("env 覆盖应直接成功");
+        std::env::remove_var(DATA_PATH_ENV);
+        assert_eq!(resolved, custom, "应原样返回环境变量指定的路径");
     }
 }

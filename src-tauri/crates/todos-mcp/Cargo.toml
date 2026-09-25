@@ -1,0 +1,10 @@
+[package]
+name = "todos-mcp"
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.89"
+description = "todos 待办的 MCP 服务器：stdio 传输（无端口），供 AI 客户端操作待办列表"
+
+[dependencies]
+todo-store = { path = "../todo-store" }
+serde_json = "1"

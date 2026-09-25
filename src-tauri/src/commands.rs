@@ -11,7 +11,7 @@ fn error_message(err: TodoError) -> String {
     match err {
         TodoError::InvalidInput => "内容为空，无法添加".to_string(),
         TodoError::NotFound => "待办不存在".to_string(),
-        TodoError::Io(_) => "保存失败：写入磁盘出错".to_string(),
+        TodoError::Io(_) => "磁盘读写失败".to_string(),
         TodoError::CorruptData => "数据文件损坏".to_string(),
         TodoError::Serde(_) => "数据序列化失败".to_string(),
     }
@@ -24,17 +24,20 @@ fn lock_store<'a>(
     state.lock().map_err(|_| "内部状态锁异常".to_string())
 }
 
-/// 列出全部待办（追加顺序）。
+/// 列出全部待办（追加顺序）。持锁 reload 以感知 MCP 进程等外部写入。
 #[tauri::command]
 pub fn list_todos(state: State<'_, Mutex<TodoStore>>) -> Result<Vec<TodoItem>, String> {
-    let store = lock_store(&state)?;
+    let mut store = lock_store(&state)?;
+    let _guard = store.lock_and_reload().map_err(error_message)?;
     Ok(store.list())
 }
 
 /// 添加待办：非空文本追加队尾并立即落盘；空文本由数据层拒绝。
+/// 持锁 reload 后写入，避免覆盖 MCP 进程的并发变更。
 #[tauri::command]
 pub fn add_todo(state: State<'_, Mutex<TodoStore>>, text: String) -> Result<TodoItem, String> {
     let mut store = lock_store(&state)?;
+    let _guard = store.lock_and_reload().map_err(error_message)?;
     store.add(text).map_err(error_message)
 }
 
@@ -42,6 +45,7 @@ pub fn add_todo(state: State<'_, Mutex<TodoStore>>, text: String) -> Result<Todo
 #[tauri::command]
 pub fn toggle_todo(state: State<'_, Mutex<TodoStore>>, id: String) -> Result<TodoItem, String> {
     let mut store = lock_store(&state)?;
+    let _guard = store.lock_and_reload().map_err(error_message)?;
     store.toggle(&id).map_err(error_message)
 }
 
@@ -53,6 +57,7 @@ pub fn update_todo(
     text: String,
 ) -> Result<TodoItem, String> {
     let mut store = lock_store(&state)?;
+    let _guard = store.lock_and_reload().map_err(error_message)?;
     store.update(&id, text).map_err(error_message)
 }
 
@@ -60,5 +65,6 @@ pub fn update_todo(
 #[tauri::command]
 pub fn remove_todo(state: State<'_, Mutex<TodoStore>>, id: String) -> Result<(), String> {
     let mut store = lock_store(&state)?;
+    let _guard = store.lock_and_reload().map_err(error_message)?;
     store.remove(&id).map_err(error_message)
 }

@@ -3768,6 +3768,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "todos-mcp"
+version = "0.1.0"
+dependencies = [
+ "serde_json",
+ "todo-store",
+]
+
+[[package]]
 name = "tokio"
 version = "1.53.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
